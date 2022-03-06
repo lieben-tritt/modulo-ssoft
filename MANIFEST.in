@@ -1,0 +1,2 @@
+include src/SSofT/SSofT_config.json
+#include src/SSofT/SSofT_credential.json
