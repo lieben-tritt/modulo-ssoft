@@ -1,0 +1,36 @@
+{
+    "super_ssoft": {
+        "gcp": {
+            "credential": "SSofT_credential.json",
+            "project_id": "scripts-python-etl",
+            "ssoft_dateset_id": "ssoft",
+            "cache_bucket": "totvs_hot",
+            "cache_bucket_st": "totvs_strict",
+            "cache_super_super": "ssoft_n3",
+            "arquivo_pqt": {
+                "compressao": "snappy",
+                "prefixo": "df",
+                "timeout_minutes": 60
+            },
+            "ano_letivo_base": "2019"
+        },
+        "local_cache": "cache"
+    },
+    "totvs_hot": {
+        "processo": "totvs_hot",
+        "arquivo_pqt": {
+            "compressao": "snappy",
+            "prefixo": "df",
+            "local_cache": "cache",
+            "local_cache_totvs_rel": "cache/totvs_rel"
+        },
+        "totvs_hot_dp":{
+            "project_id": "ssoft",
+            "dataset_id":"totvs_hot_dp",
+            "arquivo_pqt_dp": {
+                "compressao": "snappy",
+                "prefixo": "df.dp"
+            }
+        }
+    }
+}
