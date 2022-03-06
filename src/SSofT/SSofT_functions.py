@@ -17,10 +17,6 @@ from google.cloud import storage
 parent_parent = os.path.abspath(__file__ + "../../../")
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-print(parent_parent)
-print(current_dir)
-
-# %%
 def get_config(json_file=None, abspath=True, relpath=None):
 
     cnf = current_dir + '/SSofT_config.json'
@@ -30,9 +26,7 @@ def get_config(json_file=None, abspath=True, relpath=None):
     return config
 
 #!=============================================================================
-
 config = get_config()
-
 #!=============================================================================
 
 def download_blob(nome, bucket, prefix_snappy='df', compressao='snappy'):
