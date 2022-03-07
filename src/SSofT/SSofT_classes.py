@@ -118,7 +118,7 @@ class Grupo:
 
         # Para anos letivos anteriores ao ano atual, pegas os status de 
         # reprovados e aprovados
-        
+
         _df_md = _df.loc[
             (_df.max_data==True) 
             & (_df.codstatus_dp.isin([3, 9, 10]))
@@ -131,4 +131,4 @@ class Grupo:
                 as_index=False
                 ).agg(ra_log=('ra','nunique'))
 
-        return _df_md        
+        return _df_md.sort_values('nomegrupo')        
