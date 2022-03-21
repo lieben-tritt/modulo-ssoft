@@ -106,33 +106,27 @@ class GetTotvs:
         self.idx = idx
         tabela_atual = tabela.capitalize()
 
+    # @newrelic.agent.background_task(name=tabela_atual, group='SuperSSofT')
     def df_base(self, hm=False, columns=None):
-
         """
         Função principal: montagem do dataframe a partir do arquivo 
         parquet local (local_cache) ou remoto (remote_cache - bucket).
-        
+
         Nome do arquivo (convenção):
         <prefixo>.<TABELA>.<compressao>
-        
+
         Exemplo:
         "df.SALUNO.snappy" o "O destino é um [d]ata[f]rames da
         tabela totvs [SALUNO] com a compressão [snappy]
         """
-
         nome_arquivo = '.'.join([prefixo, self.tabela, compressao])
         nome_arquivo_json = '.'.join([prefixo, self.tabela, 'json'])
 
-        #nome_arquivo_dp = '.'.join([prefixo_dp, self.tabela.lower(), compressao])
-        #arq_cache_dp = local_cache_dp + '/' + nome_arquivo_dp
-
-        #arq_cache = nome_arquivo
-        
         """
         Procura primeiro localmente nome diretorio cache + nome do arquivo:
         """
         arq_cache = local_cache + '/' + nome_arquivo
-        
+
         if checa_existe_arquivo(arq_cache) == False:
 
             if self.strict:
@@ -153,15 +147,14 @@ class GetTotvs:
             self.df_original = pd.read_parquet(arq_cache, engine='auto')
             self.df_original.dropna(axis=1, how='all', inplace=True)
             self.df_original.columns = self.df_original.columns.str.lower()
-        except Exception as e:
-            print('Erro ao ler parquet', e)
 
-            
+        except Exception as e:
+            print('Erro ao ler parquet')
 
         if columns:
             filtro = list(columns.replace(' ', '').split(','))
         else:
-            filtro = list(self.df_original.columns)        
+            filtro = list(self.df_original.columns)
 
         """ Regsitra o metadado da tabela processada
         """
@@ -169,49 +162,47 @@ class GetTotvs:
             self.df_original,
             nome_arquivo_json,
             local_cache + '/metadados'
-            )
+        )
+
         if hm:
-            dir_hm = local_cache + '/ssoft_n1/heatmap/'
-            nome_arquivo_hm = '.'.join([self.tabela.lower(), 'png'])
-
-            print(dir_hm, ' <--- ---------------------> ', nome_arquivo_hm)
-
+            nome_arquivo_hm = '.'.join([prefixo, self.tabela.lower(), 'png'])
             get_heatmap(
                 self.df_original.filter(filtro),
-                (30,10),
-                dir_hm + nome_arquivo_hm
+                (30, 10),
+                local_cache + '/ssoft_n1/heatmap/' + nome_arquivo_hm
             )
-    
+
         return self.df_original.filter(filtro)
 
-    
+
 """
 Classes específicas de cada tabela do repositórioo CACHE
 """
 
+
 class PpessoaSt(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('ppessoa_st', True)
 
-    def df(self, columns=None, thdp: bool=False):
+    def df(self, columns=None, thdp: bool = False):
 
         dfb = super().df_base(columns)
         dfb.rename(columns={'codigo': 'codpessoa'}, inplace=True)
- 
-        return dfb    
+
+        return dfb
 
 
 class FcfoSt(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('fcfo_st', True)
 
-    def df(self, columns=None, thdp: bool=False):
+    def df(self, columns=None, thdp: bool = False):
 
         dfb = super().df_base(columns)
- 
-        return dfb    
+
+        return dfb
 
 
 class Slogpletivo(GetTotvs):
@@ -219,14 +210,14 @@ class Slogpletivo(GetTotvs):
     def __init__(self):
         super().__init__('slogpletivo')
 
-    def df(self, columns=None, thdp: bool=False):
+    def df(self, columns=None, thdp: bool = False):
 
         dfb = super().df_base(columns)
         filtro = list(dfb.columns)
-        
+
         if thdp is True:
-            self.do_totvs_hot_dp(dfb.filter(filtro),'slogpletivo')
-               
+            self.do_totvs_hot_dp(dfb.filter(filtro), 'slogpletivo')
+
         return dfb.filter(filtro)
 
 
@@ -239,7 +230,7 @@ class Smatricpl(GetTotvs):
         dfb = super().df_base(columns)
 
         filtro = list(dfb.columns)
-        
+
         return dfb.filter(filtro)
 
 
@@ -250,7 +241,7 @@ class Smatricula(GetTotvs):
 
     def df(self, columns=None):
         dfb = super().df_base(columns)
-        
+
         filtro = list(dfb.columns)
 
         return dfb.filter(filtro)
@@ -265,13 +256,15 @@ class Shabilitacaofilial(GetTotvs):
         dfb = super().df_base(columns)
 
         hbl = Shabilitacao().df()[
-            ['codcoligada', 'codcurso', 'codhabilitacao','nome_habilitacao']
-            ]
-        dfb = dfb.merge(hbl, 'left', ['codcoligada', 'codcurso', 'codhabilitacao'])
+            ['codcoligada', 'codcurso', 'codhabilitacao', 'nome_habilitacao']
+        ]
+        dfb = dfb.merge(
+            hbl, 'left', ['codcoligada', 'codcurso', 'codhabilitacao'])
 
         dfb['codcurso_dp'] = dfb.apply(
             lambda df: self.de_para_codcurso(
                 df.codcoligada,
+                df.codfilial,
                 df.codcurso,
                 df.codhabilitacao
             ),
@@ -281,6 +274,7 @@ class Shabilitacaofilial(GetTotvs):
         dfb['codcurso_dp_sub'] = dfb.apply(
             lambda df: self.de_para_codcurso_sub(
                 df.codcoligada,
+                df.codfilial,
                 df.codcurso,
                 df.codhabilitacao
             ),
@@ -292,7 +286,7 @@ class Shabilitacaofilial(GetTotvs):
         """ trata "EXTRAS" como não tendo série e portanto -1 """
 
         """ tem que cercar BIS e Bureau """
-        dfb.loc[dfb.serie_dp.str.isalpha()==True, 'serie_dp'] = '-'       
+        dfb.loc[dfb.serie_dp.str.isalpha() == True, 'serie_dp'] = '-'
         dfb.loc[dfb.serie_dp == '-', 'serie_dp'] = -1
 
         """ trata a não existência de série ainda """
@@ -303,8 +297,8 @@ class Shabilitacaofilial(GetTotvs):
 
         dfb['codcurso_dp_sub_ord'] = dfb.apply(
             lambda df: self.de_para_ordem(
-                    df.codcurso_dp,
-                    df.codcurso_dp_sub,
+                df.codcurso_dp,
+                df.codcurso_dp_sub,
             ),
             axis=1
         ).fillna(-1).astype(int)
@@ -312,35 +306,36 @@ class Shabilitacaofilial(GetTotvs):
         """ Trata a nome do CURSO  """
 
         dfb['codcurso_dp_nome'] = dfb.apply(
-            lambda df: self.de_para_nome_txt(df.codcurso_dp,),axis=1
+            lambda df: self.de_para_nome_txt(df.codcurso_dp,), axis=1
         )
 
         """Cria a coluna codcurso_sub_turno"""
-        
+
         tno = self.codcurso_sub_turno_df()
         _temp = dfb.merge(tno, how='left', on=['codcoligada', 'codturno'])
-        
-        dfb['codcurso_sub_turno'] = _temp.codcurso_dp_sub + '-' + _temp.turno_dp.str[0]
+
+        dfb['codcurso_sub_turno'] = _temp.codcurso_dp_sub + \
+            '-' + _temp.turno_dp.str[0]
         dfb['turno_dp'] = _temp.turno_dp
-        
+
         filtro = [
             'codcoligada', 'codfilial', 'nome_habilitacao', 'codcurso_dp',
             'codcurso_dp_sub', 'serie_dp', 'codcurso_dp_sub_ord', 'codcurso_dp_nome',
-            'idhabilitacaofilial', 'codturno', 'turno_dp', 'codcurso',
+            'idhabilitacaofilial', 'codturno', 'turno_dp', 'codcurso', 'codtipocurso',
             'codcurso_sub_turno', 'codhabilitacao', 'codgrade', 'codccusto',
             'ativo'
-            ]
+        ]
 
         return dfb[filtro]
-        
+
     def codcurso_sub_turno_df(self):
         """Faz a extração básica de turno para a criação da coluna 
-        codcurso_sub_turno"""        
-        
+        codcurso_sub_turno"""
+
         tno = Sturno()
         tno = tno.df()[['codcoligada', 'codturno', 'turno_dp']]
         return tno
-    
+
     def de_para_ordem(self, codcurso_dp, codcurso_dp_sub):
 
         try:
@@ -366,25 +361,31 @@ class Shabilitacaofilial(GetTotvs):
         else:
             return 'Extras'
 
-    def de_para_codcurso(self, codcoligada, codcurso, codhabilitacao):
+    def de_para_codcurso(self, codcoligada, codfilial, codcurso, codhabilitacao):
 
-        if (codcoligada in [1, 2]) & (codcurso == 'EI') & (codhabilitacao in ['1', 'VD']):
-            return '1EF'
-        elif codcurso in ['1', 'EI', '0EI']:
-            return '0EI'
-        elif codcurso in ['4', 'F1', '1EF']:
-            return '1EF'
-        elif codcurso in ['5', 'F2', '2EF']:
-            return '2EF'
-        elif codcurso in ['2', 'EM', '3EM']:
-            return '3EM'
-        else:
-            return 'Extras'
+        if (codcoligada==6) & (codfilial==5):
+            return codcurso[0:3]
+        else:   
+            if (codcoligada in [1, 2]) & (codcurso == 'EI') & (codhabilitacao in ['1', 'VD']):
+                return '1EF'
+            elif codcurso in ['1', 'EI', '0EI']:
+                return '0EI'
+            elif codcurso in ['4', 'F1', '1EF']:
+                return '1EF'
+            elif codcurso in ['5', 'F2', '2EF']:
+                return '2EF'
+            elif codcurso in ['2', 'EM', '3EM']:
+                return '3EM'
+            else:
+                return 'Extras'
 
-    def de_para_codcurso_sub(self, codcoligada, codcurso, codhabilitacao):
+    def de_para_codcurso_sub(self, codcoligada, codfilial, codcurso, codhabilitacao):
 
         if codcoligada not in [1, 2, 4, 5]:
-            return '-'.join([codcurso, codhabilitacao])
+            if (codcoligada==6) & (codfilial==5):
+                return '-'.join([codcurso[0:3], codhabilitacao])
+            else:
+                return '-'.join([codcurso, codhabilitacao])
         else:
             if codcoligada in [1, 2]:
                 if codcurso == 'EI':
@@ -442,7 +443,7 @@ class Shabilitacaofilial(GetTotvs):
             elif codcoligada in [4, 5]:
 
                 if codcurso == '1':
-                    
+
                     if codhabilitacao == '1':
                         return '0EI-3'
                     elif codhabilitacao == '2':
@@ -493,7 +494,7 @@ class Shabilitacaofilial(GetTotvs):
                         return '3EM-3'
 
                 if (codcoligada == 4) & (codcurso == '1'):
-                    
+
                     if codhabilitacao == '2':
                         return '0EI-2'
                     elif codhabilitacao == '6':
@@ -502,7 +503,7 @@ class Shabilitacaofilial(GetTotvs):
                         return '0EI-5'
 
                 if (codcoligada == 5) & (codcurso == '1'):
-                    
+
                     if codhabilitacao == '6':
                         return '0EI-2'
                     elif codhabilitacao == '7':
@@ -524,8 +525,8 @@ class Shabilitacao(GetTotvs):
         dfb.rename(columns={'nome': 'nome_habilitacao'}, inplace=True)
         dfb.drop(columns=[
             'descricao', 'prioridade', 'reccreatedby', 'reccreatedon',
-            'recmodifiedby', 'recmodifiedon'            
-            ], inplace=True)
+            'recmodifiedby', 'recmodifiedon'
+        ], inplace=True)
 
         return dfb
 
@@ -539,7 +540,7 @@ class Spletivo(GetTotvs):
         df = super().df_base(columns)
 
         df['anoletivo'] = df.codperlet.str[: 4].astype(int)
-          
+
         return df
 
 
@@ -550,7 +551,7 @@ class Stipomatricula(GetTotvs):
 
     def df(self, columns=None):
         dfb = super().df_base(columns)
-       
+
         dfb.loc[dfb.descricao.str.lower().isin(['matrícula', 'matricula']),
                 'descricao'] = 'Matrícula'
 
@@ -573,49 +574,52 @@ class Stipomatricula(GetTotvs):
 
         dfb = dfb.assign(
             codtipomat_dp=-1, tipomat_dp=None, tipomat_dp_val=0, tipomat_nome_col=None
-            )
+        )
 
-        lista_campos = ['codtipomat_dp', 'tipomat_dp', 'tipomat_dp_val', 'tipomat_nome_col']
+        lista_campos = ['codtipomat_dp', 'tipomat_dp',
+                        'tipomat_dp_val', 'tipomat_nome_col']
 
         dfb.loc[
             dfb.tipomat.str.lower().isin(['matrícula']), lista_campos
-            ] = [1, 'Matrícula', 1, 'matricula']
+        ] = [1, 'Matrícula', 1, 'matricula']
         dfb.loc[
             dfb.tipomat.str.lower().isin(['rematrícula']), lista_campos
-            ] = [2, 'Rematrícula', 1, 'rematricula']
+        ] = [2, 'Rematrícula', 1, 'rematricula']
 
         dfb.loc[
             dfb.tipomat.str.lower().isin(['candidato']), lista_campos
-            ] = [3, 'Candidato', 0, 'candidato']
+        ] = [3, 'Candidato', 0, 'candidato']
 
         dfb.loc[
             dfb.tipomat.str.lower().isin(['ex-aluno']), lista_campos
-            ] = [4, 'Ex-aluno', 1, 'ex_aluno']
+        ] = [4, 'Ex-aluno', 1, 'ex_aluno']
 
         dfb.loc[
             dfb.tipomat.str.lower().isin(['transferido']), lista_campos
-            ] = [5, 'Transferido', -1, 'ex_aluno']
-
+        ] = [5, 'Transferido', -1, 'ex_aluno']
 
         #filtro = ['codcoligada', 'codtipomat', 'tipomat', 'tipomat_nome_col']
 
-        return dfb#.filter(filtro)
+        return dfb  # .filter(filtro)
 
 
 class Stipocurso(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('stipocurso')
 
     def df(self, columns=None):
+        
         dfb = super().df_base(columns)
         dfb = dfb[['codcoligada', 'codtipocurso', 'nome', 'apresentacao']]
+        
         dfb['codtipocurso_dp'] = dfb.apresentacao.astype(int)
         dfb['tipocurso_dp'] = 'Curricular'
+        
         dfb.loc[dfb.codtipocurso_dp > 0, 'tipocurso_dp'] = 'Extracurricular'
         dfb.rename(columns={'nome': 'tipocurso'}, inplace=True)
 
-        return dfb    
+        return dfb
 
 
 class Sstatus(GetTotvs):
@@ -624,9 +628,11 @@ class Sstatus(GetTotvs):
         super().__init__('sstatus')
 
     def df(self, columns=None):
+        """De - PARA - status de cada par mesmo status"""
+        
         dfb = super().df_base(columns)
 
-        df = dfb.assign(codstatus_dp=0, status_dp=None, status_dp_ord=np.nan,
+        df = dfb.assign(codstatus_dp=0, status_dp=None, status_dp_ord=None,
                         status_dp_val=0)
 
         lista_campos = ['codstatus_dp', 'status_dp', 'status_dp_val',
@@ -635,90 +641,92 @@ class Sstatus(GetTotvs):
         df.loc[
             df.descricao.str.contains('Pré-Mat', case=False),
             lista_campos
-            ] = [1, 'Pré-Matrícula', 0, 1, 'pre_matriculado', .25]
+        ] = [1, 'Pré-Matrícula', 0, 1, 'pre_matriculado', .25]
 
         df.loc[
             df.descricao.str.lower().isin(['reserva de vaga']),
             lista_campos
-            ] = [2, 'Reserva de Vaga', 0, 2, 'reserva_de_vaga', .25]
+        ] = [2, 'Reserva de Vaga', 0, 2, 'reserva_de_vaga', .25]
 
         list_mat = ['matriculado', 'cursando']
         df.loc[
             df.descricao.str.contains('|'.join(list_mat), case=False),
             lista_campos
-            ] = [3, 'Matriculado', 1, 3, 'matriculado', 1]
+        ] = [3, 'Matriculado', 1, 3, 'matriculado', 1]
 
         lista_mov_int = ['Transferência interna',
                          'Transferido de Turma', 'Remanejado']
         df.loc[
             df.descricao.str.lower().isin(x.lower() for x in lista_mov_int),
             lista_campos
-            ] = [4, 'Remanejado', -1, 4, 'remanejado', -1]
+        ] = [4, 'Remanejado', -1, 4, 'remanejado', -1]
 
         lista_tran = ['Transferido', 'Transferido de Instituição']
         df.loc[
             df.descricao.str.lower().isin(x.lower() for x in lista_tran),
             lista_campos
-            ] = [5, 'Transferido de Instituição', -1, 5, 'transf_instituicao', -1]
+        ] = [5, 'Transferido de Instituição', -1, 5, 'transf_instituicao', -1]
 
         lista_tran_teia = [
             'Transferido p/ Escola do Grupo', 'Transferência Teia']
         df.loc[
             df.descricao.str.lower().isin(x.lower() for x in lista_tran_teia),
             lista_campos
-            ] = [6, 'Transferido p/ Escola do Grupo', -1, 5, 'transf_escola_grupo', -1]
+        ] = [6, 'Transferido p/ Escola do Grupo', -1, 5, 'transf_escola_grupo', -1]
 
         list_can = ['Cancelado', 'Não Cursou']
         df.loc[
             df.descricao.str.contains('|'.join(list_can), case=False),
             lista_campos
-            ] = [7, 'Cancelado', -1, 2, 'cancelado', -1]
+        ] = [7, 'Cancelado', -1, 2, 'cancelado', -1]
 
         df.loc[
             df.descricao.str.contains('desistente', case=False),
             lista_campos
-            ] = [8, 'Desistente', -1, 2, 'desistente', -1]
+        ] = [8, 'Desistente', -1, 2, 'desistente', -1]
 
         df.loc[
             df.descricao.str.contains('aprovado', case=False),
             lista_campos
-            ] = [9, 'Aprovado', 0, 4, 'aprovado', .25]
+        ] = [9, 'Aprovado', 0, 4, 'aprovado', .25]
 
         lista_repr = ['Retido', 'Reprovado', 'Reprovado por Falta']
         df.loc[
             df.descricao.str.lower().isin(x.lower() for x in lista_repr),
             lista_campos
-            ] = [10, 'Reprovado', 0, 4, 'reprovado', 0]
+        ] = [10, 'Reprovado', 0, 4, 'reprovado', 0]
 
         df.loc[
             df.descricao.str.contains('recupera', case=False),
             lista_campos
-            ] = [11, 'Recuperação', 0, 4, 'recuperacao', 0]
+        ] = [11, 'Recuperação', 0, 4, 'recuperacao', 0]
 
         df.loc[
             df.descricao.str.contains('regress', case=False),
             lista_campos
-            ] = [12, 'Regressão', 0, 4, 'regressao', 0]
+        ] = [12, 'Regressão', 0, 4, 'regressao', 0]
 
         df.loc[
             df.descricao.str.lower().isin(['apc', 'conselho']),
             lista_campos
-            ] = [13, 'Aprovado pelo Conselho', 0, 4, 'aprovado_conselho', .25]
+        ] = [13, 'Aprovado pelo Conselho', 0, 4, 'aprovado_conselho', .25]
 
         df.loc[
-            df.descricao=='Reclassificado', lista_campos
-            ] = [14, 'Reclassificado', -1, 4, 'reclassificado', .25]
+            df.descricao == 'Reclassificado', lista_campos
+        ] = [14, 'Reclassificado', -1, 4, 'reclassificado', .25]
 
         df.loc[
-            df.descricao=='Intercâmbio', lista_campos
-            ] = [15, 'Intercâmbio', -1, 4, 'intercambio', -.5]
+            df.descricao == 'Intercâmbio', lista_campos
+        ] = [15, 'Intercâmbio', -1, 4, 'intercambio', -.5]
 
         list_conc = ['Concluiu']
         df.loc[
             df.descricao.str.contains('|'.join(list_conc), case=False),
             lista_campos
-            ] = [30, 'Formado', -1, 5, 'formado', -1]
+        ] = [30, 'Formado', -1, 5, 'formado', -1]
 
+        #df.loc[(df.codcoligada==6) & (df.codtatus==16)]       
+        
         return df
 
 
@@ -752,23 +760,11 @@ class Sturno(GetTotvs):
             'turno_dp', 'turno_dp_nome_col']] = ['Integral', 'integral']
         dft.loc[dft.tipo == 'N', [
             'turno_dp', 'turno_dp_nome_col']] = ['Noite', 'noite']
-        
+
         filtro = ['codcoligada', 'codfilial', 'codturno', 'turno_dp',
                   'horini', 'horfim', 'tipo', 'turno_dp_nome_col']
 
         return dft.filter(filtro)
-
-
-class Scurso(GetTotvs):
-
-    def __init__(self):
-
-        super().__init__('scurso')
-
-    def df(self, columns=None):
-        dfb = super().df_base(columns)
-
-        return dfb
 
 
 class Smotivoaltmat(GetTotvs):
@@ -808,7 +804,7 @@ class Sinstituicao(GetTotvs):
         dfb = dfb.rename(columns={
             'nome': 'instituicao',
             'nomefantasia': 'instituicao_nf'
-            })
+        })
 
         filtro = ['codinst', 'instituicao', 'instituicao_nf', 'cidade', 'uf',
                   'diretor', 'conveniada', 'tipoinst']
@@ -854,9 +850,9 @@ class Gfilial(GetTotvs):
         super().__init__('gfilial')
 
     def df(self, columns=None):
-        
+
         dfb = super().df_base(columns)
-        
+
         cols = [
             'codcoligada',
             'codfilial',
@@ -872,12 +868,12 @@ class Gfilial(GetTotvs):
             'cidade',
             'estado',
             'pais',
-            'cep'	                    
-        ]      
+            'cep'
+        ]
 
         return dfb[cols]
 
-        
+
 class Sparcela(GetTotvs):
 
     def __init__(self):
@@ -913,26 +909,37 @@ class Flan(GetTotvs):
         dfb = super().df_base(columns)
 
         dfb.insert(
-            4,'statuslan_desc_dp', 
+            4, 'statuslan_desc_dp',
             dfb.apply(
                 lambda x: self.depara_statuslan(x.statuslan), axis=1
-                )
-                )
+            )
+        )
+        _cols_op = [
+            'valorop1',
+            'valorop2',
+            'valorop3',
+            'valorop4',
+            'valorop5',
+            'valorop6',
+            'valorop7',
+            'valorop8',
+        ]
+        dfb['valorop_sum'] = dfb[_cols_op].sum(axis=1)
 
         return dfb
 
     def depara_statuslan(self, x):
-        if x==0:
+        if x == 0:
             txt = 'Em Aberto'
-        elif x==1:
+        elif x == 1:
             txt = 'Baixado'
-        elif x==2:
+        elif x == 2:
             txt = 'Cancelado'
-        elif x==3:
+        elif x == 3:
             txt = 'Baixado por Acordo'
-        elif x==4:
+        elif x == 4:
             txt = 'Baixado parcialmente'
-        elif x==5:
+        elif x == 5:
             txt = 'Borderô'
         else:
             txt = 'Não definido'
@@ -949,7 +956,7 @@ class Fboleto(GetTotvs):
         dfb = super().df_base(columns)
 
         dfb.insert(
-            13, 'cnabstatus_desc_dp', 
+            13, 'cnabstatus_desc_dp',
             dfb.apply(
                 lambda x: self.depara_cnabstatus(x.cnabstatus),
                 axis=1
@@ -959,21 +966,21 @@ class Fboleto(GetTotvs):
         return dfb
 
     def depara_cnabstatus(self, x):
-        if x== 0:
+        if x == 0:
             txt = 'Não Remetido'
-        elif x==1:
+        elif x == 1:
             txt = 'Remetido'
-        elif x==2:
+        elif x == 2:
             txt = 'Registrado'
-        elif x==3:
+        elif x == 3:
             txt = 'Recusado'
-        elif x==4:
+        elif x == 4:
             txt = 'Baixado'
-        elif x==5:
+        elif x == 5:
             txt = 'Registrado Online'
-        elif x==6:
+        elif x == 6:
             txt = 'Cancelado'
-        elif x==7:
+        elif x == 7:
             txt = 'Pendente Remessa'
         return txt
 
@@ -985,7 +992,7 @@ class Flanboleto(GetTotvs):
 
     def df(self, columns=None):
         dfb = super().df_base(columns)
-        
+
         filtro = list(dfb.columns)
 
         return dfb.filter(filtro)
@@ -1062,7 +1069,7 @@ class Splanopgto(GetTotvs):
 
     def df(self, columns=None):
         dfb = super().df_base(columns)
-        
+
         dfb.rename(columns={
             'descricao': 'descplanpgto',
             'nome': 'nomeplanpgto',
@@ -1160,7 +1167,7 @@ class Ftdo(GetTotvs):
 
 
 class Zmdgrupo(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('zmdgrupo')
 
@@ -1171,7 +1178,7 @@ class Zmdgrupo(GetTotvs):
 
 
 class Zmdgrupocoligada(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('Zmdgrupocoligada')
 
@@ -1179,68 +1186,67 @@ class Zmdgrupocoligada(GetTotvs):
         dfb = super().df_base(columns)
 
         zgc = dfb[['codgrupo', 'codcoligada']]
-        
+
         gc = Gcoligada().df()[['codcoligada', 'nomefantasia', 'nome']]
         gc.rename(
             columns={
                 'nome': 'coligada_rs',
                 'nomefantasia': 'coligada'
-                },
+            },
             inplace=True
-            )
-        
-        gf = Gfilial().df()[['codcoligada', 'codfilial', 'nome', 'nomefantasia']]
+        )
+
+        gf = Gfilial().df()[
+            ['codcoligada', 'codfilial', 'nome', 'nomefantasia']]
         gf.rename(
             columns={
                 'nome': 'filial_rs',
                 'nomefantasia': 'filial'
-                },
+            },
             inplace=True
-            )
-        
+        )
+
         zg = Zmdgrupo().df()[['codgrupo', 'nomegrupo']]
 
-        
         df_grupo = zg.merge(zgc, on=['codgrupo'])
-       
+
         df_grupo['escola'] = df_grupo.nomegrupo
         df_grupo['codescola'] = df_grupo.codgrupo
-        
+
         df_grupo = df_grupo.merge(gc, on=['codcoligada'])
         df_grupo = df_grupo.merge(gf, on=['codcoligada'])
-               
 
         """ Trata o codunidade """
         df_grupo = df_grupo.assign(
             unidade=-1,
             nomeunidade=df_grupo.nomegrupo.str.replace(
                 'Grupo\s', '', regex=True
-                )
             )
-        
+        )
+
         df_grupo.loc[
-            df_grupo.codcoligada.isin([1,2, 3, 9, 10, 12, 13, 14, 19, 20]
+            df_grupo.codcoligada.isin([1, 2, 3, 9, 10, 12, 13, 14, 19, 20]
                                       ), 'unidade'] = 1
-        
+
         # VILA BUTANTA
         df_grupo.loc[(df_grupo.codcoligada == 4) & (df_grupo.codfilial == 1),
                      ['unidade', 'nomeunidade']
                      ] = [1, 'Escola da Vila - Butantã']
-        
-        #VILA GRANJA
+
+        # VILA GRANJA
         df_grupo.loc[(df_grupo.codcoligada == 4) & (df_grupo.codfilial == 2),
                      ['unidade', 'nomeunidade']
                      ] = [2, 'Escola da Vila - Granja Viana']
-        
-        #VILA MORUMBI
+
+        # VILA MORUMBI
         df_grupo.loc[
             (df_grupo.codcoligada == 5), ['unidade', 'nomeunidade']
-            ] = [3, 'Escola da Vila - Morumbi']
-        
-        #PARQUE
+        ] = [3, 'Escola da Vila - Morumbi']
+
+        # PARQUE
         df_grupo.loc[(df_grupo.codcoligada == 15), ['unidade', 'nomeunidade']
                      ] = [1, 'Unidade Gávea']
-        
+
         df_grupo.loc[(df_grupo.codcoligada == 16), ['unidade', 'nomeunidade']
                      ] = [2, 'Unidade Barra']
         # BIS
@@ -1248,50 +1254,63 @@ class Zmdgrupocoligada(GetTotvs):
 
         # Autonomia
         df_grupo.loc[
-            (df_grupo.codcoligada==6) & 
-            (df_grupo.codfilial==2), [
+            (df_grupo.codcoligada == 6) &
+            (df_grupo.codfilial == 2), [
                 'codgrupo', 'nomegrupo', 'codescola', 'escola', 'unidade',
                 'filial', 'nomeunidade'
-                ]
-            ] = [
-                62, 'Escola Autonomia', 62, 'Escola Autonomia', 1,
-                'Escola Autonomia', 'Escola Autonomia'
-                ]
+            ]
+        ] = [
+            62, 'Escola Autonomia', 62, 'Escola Autonomia', 1,
+            'Escola Autonomia', 'Escola Autonomia'
+        ]
+
+        df_grupo.loc[
+            (df_grupo.codcoligada == 6) &
+            (df_grupo.codfilial == 5), [
+                'codgrupo', 'nomegrupo', 'codescola', 'escola', 'unidade',
+                'filial', 'nomeunidade'
+            ]
+        ] = [
+            65, 'Colégio Apoio', 65, 'Colégio Apoio', 1,
+            'Colégio Apoio', 'Colégio Apoio'
+        ]
 
         """
         hash entra depois das mascaras de nome grupo etc
         """
-        
+
         df_grupo['codmd5'] = [
-                    hashlib.md5(
-                        val.encode('UTF-8')
-                    ).hexdigest() for val in df_grupo['nomegrupo']
-                    ]
+            hashlib.md5(
+                val.encode('UTF-8')
+            ).hexdigest() for val in df_grupo['nomegrupo']
+        ]
 
         df_grupo = df_grupo[[
-            'codgrupo', 
-            'nomegrupo', 
-            'codescola', 
-            'escola', 
+            'codgrupo',
+            'nomegrupo',
+            'codescola',
+            'escola',
             'unidade',
             'nomeunidade',
-            'codcoligada', 
-            'coligada', 
-            'coligada_rs', 
+            'codcoligada',
+            'coligada',
+            'coligada_rs',
             'codfilial',
-            'filial_rs', 
-            'filial', 
-            'codmd5', 
+            'filial_rs',
+            'filial',
+            'codmd5',
         ]]
-                
+
+        df_grupo = df_grupo.drop_duplicates(keep='first')
+
         return df_grupo
-    
+
     def dict_grupocoligada(self, dict_orient='records'):
         return self.df().to_dict(orient=dict_orient)
 
 
 class Zmdfichamedicaquestionario(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('zmdfichamedicaquestionario')
 
@@ -1299,10 +1318,10 @@ class Zmdfichamedicaquestionario(GetTotvs):
         dfb = super().df_base(columns)
 
         return dfb
-    
+
 
 class Zmdfichamedicagrupopergunta(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('zmdfichamedicagrupopergunta')
 
@@ -1313,7 +1332,7 @@ class Zmdfichamedicagrupopergunta(GetTotvs):
 
 
 class Zmdfichamedicapergunta(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('zmdfichamedicapergunta')
 
@@ -1321,10 +1340,10 @@ class Zmdfichamedicapergunta(GetTotvs):
         dfb = super().df_base(columns)
 
         return dfb
-    
+
 
 class Zmdfichamedicaresposta(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('zmdfichamedicaresposta')
 
@@ -1335,7 +1354,7 @@ class Zmdfichamedicaresposta(GetTotvs):
 
 
 class Cpartida(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('cpartida')
 
@@ -1347,7 +1366,7 @@ class Cpartida(GetTotvs):
 
 
 class Cconta(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('cconta')
 
@@ -1358,8 +1377,7 @@ class Cconta(GetTotvs):
 
 
 class Gccusto(GetTotvs):
-    
-    
+
     def __init__(self):
         super().__init__('gccusto')
 
@@ -1369,19 +1387,8 @@ class Gccusto(GetTotvs):
         return dfb
 
 
-class Snotas(GetTotvs):
-
-    def __init__(self):
-        super().__init__('snotas')
-
-    def df(self, columns=None):
-        dfb = super().df_base(columns)
-
-        return dfb
-
-
 class Sbolsa(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('sbolsa')
 
@@ -1397,7 +1404,7 @@ class Sbolsa(GetTotvs):
 
 
 class Sbolsaaluno(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('sbolsaaluno')
 
@@ -1405,9 +1412,9 @@ class Sbolsaaluno(GetTotvs):
         df = super().df_base(columns)
 
         _pl = Spletivo().df()[['codcoligada', 'idperlet', 'anoletivo']]
-        
+
         df = df.merge(_pl, 'left', on=['codcoligada', 'idperlet'])
-        
+
         _serv = Sservico().df()[
             ['codcoligada', 'codservico', 'servico', 'codtdo']]
 
@@ -1439,12 +1446,12 @@ class Sbolsaaluno(GetTotvs):
             'idperlet',
             'anoletivo',
             'ra',
-            #'bolsa100',
-            #'data_ini_ra',
+            # 'bolsa100',
+            # 'data_ini_ra',
             'datainiciobolsaaluno',
             'datafimbolsaaluno',
             'duracao_bolsa',
-            #'duracao_ra',
+            # 'duracao_ra',
             'parcelainicial',
             'parcelafinal',
             'desconto',
@@ -1467,13 +1474,13 @@ class Sbolsaaluno(GetTotvs):
             'ordemaplicdescantecipacao',
             'afetabasecalculo',
             'obs',
-            ]
+        ]
         return re_order
 
-    def trata_periodo_parcela(self, p1,p2):
+    def trata_periodo_parcela(self, p1, p2):
 
-        if (p1!=None) & (p2!=None):
-            if p1==p2:
+        if (p1 != None) & (p2 != None):
+            if p1 == p2:
                 per = 1
             else:
                 per = p2-p1+1
@@ -1483,7 +1490,7 @@ class Sbolsaaluno(GetTotvs):
 
 
 class Sbolsalan(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('sbolsalan')
 
@@ -1494,12 +1501,12 @@ class Sbolsalan(GetTotvs):
             'valor': 'valorbolsalan',
             'valorbaixa': 'valorbaixabolsalan'
         }, inplace=True)
-        
+
         return df
 
 
 class Sbolsapletivo(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('sbolsapletivo')
 
@@ -1510,7 +1517,7 @@ class Sbolsapletivo(GetTotvs):
 
 
 class Sbolsacompl(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('sbolsacompl')
 
@@ -1521,7 +1528,7 @@ class Sbolsacompl(GetTotvs):
 
 
 class Sbolsafilial(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('sbolsafilial')
 
@@ -1532,7 +1539,7 @@ class Sbolsafilial(GetTotvs):
 
 
 class Gusuario(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('gusuario')
 
@@ -1543,7 +1550,7 @@ class Gusuario(GetTotvs):
 
 
 class Gdic(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('gdic')
 
@@ -1551,24 +1558,102 @@ class Gdic(GetTotvs):
         df = super().df_base(columns)
 
         return df
-#*-----------------------------------------------------------------------------
 
-#* Classes Join - Compostas
 
-#*-----------------------------------------------------------------------------
+class Setapas(GetTotvs):
+    
+    def __init__(self):
+        super().__init__('setapas')
+
+    def df(self, columns=None):
+        df = super().df_base(columns)
+
+        return df
+
+
+class Snotas(GetTotvs):
+    
+    def __init__(self):
+        super().__init__('snotas')
+
+    def df(self, columns=None):
+        df = super().df_base(columns)
+
+        return df
+
+
+class Snotaetapa(GetTotvs):
+    
+    def __init__(self):
+        super().__init__('snotaetapa')
+
+    def df(self, columns=None):
+        df = super().df_base(columns)
+
+        return df
+
+
+class Sprovas(GetTotvs):
+    
+    def __init__(self):
+        super().__init__('sprovas')
+
+    def df(self, columns=None):
+        df = super().df_base(columns)
+
+        return df
+
+
+# *-----------------------------------------------------------------------------
+
+# * Classes Join - Compostas
+
+# *-----------------------------------------------------------------------------
+
+
+class SmatricplStipomatricula(GetTotvs):
+    """ Classe dedicada para um join cartesiano entre a SMATRICPL->CODTIPOMAT
+    com a SLOGPLETIVO para que os dados _LPL sejam atribuidos do tipo de 
+    matrícula corretamente
+    """
+    def __init__(self):
+        super().__init__('smatricpl')
+
+    def df(self, columns=None):
+    
+        _list_codcurso = ['1','2','3','4','5','EI','F1','F2','EM','0EI','1EF',
+            '2EF','3EM','0EI.1','1EF.1', '1EF.2', '2EF.1', '2EF.2']
+
+        cols_tm = [
+            'codcoligada',
+            'codfilial',
+            'idperlet',
+            'ra',
+            'codtipomat',
+            ]
+        
+        df_mpl = super().df_base()
+        df_tmt = Stipomatricula().df()
+        df_hbf = Shabilitacaofilial().df()
+        df_mpl = df_mpl.merge(df_hbf, 'inner', on=['codcoligada', 'idhabilitacaofilial', 'codfilial'])
+        df_mpl = df_mpl[df_mpl.codcurso.isin(_list_codcurso)]
+
+        _df = df_mpl.merge(df_tmt, 'inner', on=['codcoligada', 'codtipomat'])
+        
+        return _df[cols_tm]
+
 
 class SlogpletivoSmatricpl(GetTotvs):
 
     def __init__(self):
         super().__init__('slogpletivo')
-    
+
     def df(self, columns=None):
 
-        #_cols = [
+        # _cols = [
         #    'codcoligada','codfilial','idhabilitacaofilial','idperlet','ra',
         #    'codstatus','codturma'
         # ]
-
 
         _cols = [
             'codcoligada',
@@ -1577,9 +1662,8 @@ class SlogpletivoSmatricpl(GetTotvs):
             'ra',
             'codfilial',
             'codstatus'
-            ]
+        ]
 
-        
         #_cols_lpl = _cols + ['dtalteracao', 'codstatusant', 'operacao']
 
         _cols_lpl = _cols + [
@@ -1592,13 +1676,13 @@ class SlogpletivoSmatricpl(GetTotvs):
             'periodo',
             'codstatusant',
             'codinstdestino',
-            'codmotivotransferencia',            
+            'codmotivotransferencia',
             'reccreatedby',
             'reccreatedon',
             'recmodifiedby',
             'recmodifiedon'
-            ]        
-        
+        ]
+
         #_cols_mpl = _cols + ['recmodifiedon']
         _cols_mpl = _cols + [
             'codtipomat',
@@ -1609,40 +1693,48 @@ class SlogpletivoSmatricpl(GetTotvs):
             'reccreatedon',
             'recmodifiedby',
             'recmodifiedon'
-            ]
-        
-        _how_join='outer'
-        
-        _cols_join=[
+        ]
+
+
+        _cols_join = [
             'codcoligada',
             'codfilial',
             'codstatus',
             'idperlet',
             'ra',
             'idhabilitacaofilial'
-            ]
-        
+        ]
+
         df_lpl = super().df_base(columns)
         df_lpl = df_lpl[_cols_lpl]
         
+        df_mpl_tmt = SmatricplStipomatricula().df()
+        df_lpl = df_lpl.merge(df_mpl_tmt,
+                              how='inner',
+                              on=['codcoligada', 'codfilial', 'idperlet', 'ra']
+                              )
+        
+
         df_lpl['data_key'] = df_lpl.dtalteracao.apply(
             lambda x: x.strftime('%Y%m%d%H%M')[:-1]).astype('int64')
-        
+
         df_mpl = Smatricpl().df()
         df_mpl = df_mpl[_cols_mpl]
-        
+
         df_mpl['data_key'] = df_mpl.recmodifiedon.apply(
             lambda x: x.strftime('%Y%m%d%H%M')[:-1]).astype('int64')
-        
+
+        _how_join = 'outer'
         _on_join = ['data_key'] + _cols_join
 
         _df = df_lpl.merge(
             df_mpl, how=_how_join, on=_on_join, indicator=True, suffixes=('_lpl', '_mpl'))
-        
-        _map_merge={"left_only":"_LPL", "right_only":"MPL_", "both":"_JOIN_"}
-        
+
+        _map_merge = {"left_only": "_LPL",
+                      "right_only": "MPL_", "both": "_JOIN_"}
+
         _df['merge_str'] = _df._merge.map(_map_merge)
-        
+
         """ Traz dados de grupos e coligadas par nascer ordenado já com dados
         não TOTVS como escola e unidade 
         """
@@ -1661,12 +1753,12 @@ class SlogpletivoSmatricpl(GetTotvs):
         ]
         gc = Zmdgrupocoligada().df()
         _df = _df.merge(gc, 'inner', ['codcoligada', 'codfilial'])
-        
+
         """ Merge com Spletivo para trazer o ano letivo e calcular ano letivo
         inicial do RA
         """
 
-        _cols_ple = ['codcoligada', 'codfilial', 'idperlet']       
+        _cols_ple = ['codcoligada', 'codfilial', 'idperlet']
         ple = Spletivo().df()[_cols_ple + ['anoletivo', 'codtipocurso']]
         _df = _df.merge(ple, 'inner', _cols_ple)
 
@@ -1681,36 +1773,58 @@ class SlogpletivoSmatricpl(GetTotvs):
         _df = _df.merge(sts, 'inner', ['codcoligada', 'codstatus'])
 
 
+        """ Colunas que tratam o primeiro e o último ano letivo do aluno nos 
+        diversos contextos. Esta análise tem que ser adequada, corrijida para 
+        usar o codpessoa e não o RA para refletir uma relidade de captação
+        ou retenção
+        """
+        
         _df = _df.set_index(['ra'])
-        _df['anoletivo_min'] = _df.groupby(level=[0], dropna=False).agg({'anoletivo': 'min'})
-        _df['anoletivo_max'] = _df.groupby(level=[0], dropna=False).agg({'anoletivo': 'max'})
+        _df['anoletivo_min'] = _df.groupby(
+            level=[0], dropna=False).agg({'anoletivo': 'min'})
+        _df['anoletivo_max'] = _df.groupby(
+            level=[0], dropna=False).agg({'anoletivo': 'max'})
 
         _df = _df.reset_index().set_index(['ra', 'codgrupo'])
-        _df['anoletivo_min_g'] = _df.groupby(level=[0, 1], dropna=False).agg({'anoletivo': 'min'})
-        _df['anoletivo_max_g'] = _df.groupby(level=[0, 1], dropna=False).agg({'anoletivo': 'max'})
+        _df['anoletivo_min_g'] = _df.groupby(
+            level=[0, 1], dropna=False).agg({'anoletivo': 'min'})
+        _df['anoletivo_max_g'] = _df.groupby(
+            level=[0, 1], dropna=False).agg({'anoletivo': 'max'})
 
         _df = _df.reset_index().set_index(['ra', 'codgrupo', 'unidade'])
-        _df['anoletivo_min_gu'] = _df.groupby(level=[0, 1, 2], dropna=False).agg({'anoletivo': 'min'})
-        _df['anoletivo_max_gu'] = _df.groupby(level=[0, 1, 2], dropna=False).agg({'anoletivo': 'max'})
+        _df['anoletivo_min_gu'] = _df.groupby(
+            level=[0, 1, 2], dropna=False).agg({'anoletivo': 'min'})
+        _df['anoletivo_max_gu'] = _df.groupby(
+            level=[0, 1, 2], dropna=False).agg({'anoletivo': 'max'})
 
         _df = _df.reset_index().set_index(['codcoligada', 'ra'])
-        _df['anoletivo_min_c'] = _df.groupby(level=[0, 1], dropna=False).agg({'anoletivo': 'min'})
-        _df['anoletivo_max_c'] = _df.groupby(level=[0, 1], dropna=False).agg({'anoletivo': 'max'})
+        _df['anoletivo_min_c'] = _df.groupby(
+            level=[0, 1], dropna=False).agg({'anoletivo': 'min'})
+        _df['anoletivo_max_c'] = _df.groupby(
+            level=[0, 1], dropna=False).agg({'anoletivo': 'max'})
 
         _df = _df.reset_index().set_index(['codcoligada', 'codfilial', 'ra'])
-        _df['anoletivo_min_cf'] = _df.groupby(level=[0, 1, 2], dropna=False).agg({'anoletivo': 'min'})
-        _df['anoletivo_max_cf'] = _df.groupby(level=[0, 1, 2], dropna=False).agg({'anoletivo': 'max'})
+        _df['anoletivo_min_cf'] = _df.groupby(
+            level=[0, 1, 2], dropna=False).agg({'anoletivo': 'min'})
+        
+        _df['anoletivo_max_cf'] = _df.groupby(
+            level=[0, 1, 2], dropna=False).agg({'anoletivo': 'max'})
 
         _df = _df.reset_index()
 
         """Faz o bfill do codtipo mat para os registro que vem da LPL"""
 
-        _df = _df.sort_values(['ra', 'anoletivo', 'data_key', 'codtipomat'], na_position='first')
-        _df['codtipomat'] = _df.groupby([
-            'codcoligada', 'codfilial', 'ra', 'idperlet', 'codtipocurso'
-            ], as_index=False)['codtipomat'].fillna(method='bfill')
+        #_df = _df.sort_values(
+        #    ['ra', 'idperlet', 'anoletivo', 'data_key', 'codtipomat'], na_position='first')
         
-        re_order=[
+        _df['codtipomat_lpl'] = _df.codtipomat_lpl.fillna(_df.codtipomat_mpl)
+        _df.rename(columns={'codtipomat_lpl': 'codtipomat'}, inplace=True)
+        
+        _df['tipomat_dp_anoletivo'] = _df.apply(
+            lambda z: 'Matrícula' if z.anoletivo_min_g == z.anoletivo else 'Rematrícula', axis=1)
+        
+        
+        re_order = [
             'data_key',
             'codgrupo',
             'nomegrupo',
@@ -1728,6 +1842,8 @@ class SlogpletivoSmatricpl(GetTotvs):
             'dtalteracao',
             'anoletivo',
             'codtipomat',
+            'codtipomat_mpl',
+            'tipomat_dp_anoletivo',
             'codtipocurso',
             'codstatus_dp',
             'status_dp',
@@ -1771,21 +1887,18 @@ class SlogpletivoSmatricpl(GetTotvs):
             '_merge',
             'merge_str',
             'codmd5',
-            ]
+        ]
 
-        
-        _df = _df[re_order]
+        return _df[re_order]
 
-        return _df
 
-      
 class SalunoPpessoa(GetTotvs):
-    
+
     def __init__(self):
         super().__init__('saluno')
 
     def df(self, columns=None):
-        
+
         dfb = super().df_base()[[
             'codpessoa',
             'ra',
@@ -1798,7 +1911,6 @@ class SalunoPpessoa(GetTotvs):
             'codpessoaraca',
             'codparentraca',
             'anoingresso',
-            ]]
-        
-        
+        ]]
+
         return dfb

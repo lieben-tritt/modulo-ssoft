@@ -13,19 +13,21 @@ from SSofT_functions import (
     get_heatmap
     )
 
+
 """
 Carrega o json de configuração do processo
 """
 
 # %%
 config = get_config()
+pqt_version = '_v3_beta'
 
 """
 Cria variáveis para uso interno e global:
 """
 
 remote_cache = config['super_ssoft']['gcp']['cache_super_super']
-local_cache = config['super_ssoft']['local_cache']
+local_cache = config['super_ssoft']['local_cache_ssoft']
 
 """
 Montagem da classe geral "GetTotvs" e das classes específicas das tabelas
@@ -128,7 +130,19 @@ class GetBoaAtiva(GetSSofT):
 class GetStatus(GetSSofT):
     
     def __init__(self):
-        super().__init__('df.StatusStatusMovimento_mpl_last.snappy')
+        super().__init__(f'df.StatusStatusMovimento_mpl_last{pqt_version}.snappy')
+
+    def df(self, columns=None):
+
+        dfb = super().df_base()
+ 
+        return dfb
+
+
+class GetFluxoRv(GetSSofT):
+    
+    def __init__(self):
+        super().__init__(f'df.StatusStatusMovimento_fluxo_rv{pqt_version}.snappy')
 
     def df(self, columns=None):
 
@@ -140,7 +154,7 @@ class GetStatus(GetSSofT):
 class GetFluxo(GetSSofT):
     
     def __init__(self):
-        super().__init__('df.StatusStatusMovimento_fluxo.snappy')
+        super().__init__(f'df.StatusStatusMovimento_fluxo{pqt_version}.snappy')
 
     def df(self, columns=None):
 
@@ -152,7 +166,7 @@ class GetFluxo(GetSSofT):
 class GetLog(GetSSofT):
     
     def __init__(self):
-        super().__init__('df.StatusStatusMovimento_lpl_log.snappy')
+        super().__init__(f'df.StatusStatusMovimento_lpl_log{pqt_version}.snappy')
 
     def df(self, columns=None):
 
@@ -164,7 +178,7 @@ class GetLog(GetSSofT):
 class GetFullLog(GetSSofT):
     
     def __init__(self):
-        super().__init__('df.StatusStatusMovimento_full.snappy')
+        super().__init__(f'df.StatusStatusMovimento_full{pqt_version}.snappy')
 
     def df(self, columns=None):
 

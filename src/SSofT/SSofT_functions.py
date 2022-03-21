@@ -1,5 +1,3 @@
-
-# %%
 import io
 import json
 import os
@@ -7,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-#import numpy as np
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import gspread
@@ -40,7 +38,7 @@ def download_blob(nome, bucket, prefix_snappy='df', compressao='snappy'):
         mais generica
     """
     local_cache = config['super_ssoft']['local_cache']
-
+    
     storage_client = storage.Client()
     source_blob_name = '.'.join([prefix_snappy, nome.upper(), compressao])
     destination_file_name = local_cache + '/' + source_blob_name
@@ -75,7 +73,6 @@ def checa_existe_arquivo(arq):
 
     """Esta função checa se o arquivo da tabela em questão existe e se está
     válido dentro do tempo definido na config
-
     Caso esteja válido, usa o arquivo. Caso não esteja válido ou não exista, 
     faz o download do repositório de cache atualizado pela importação do
     totvs_hot
@@ -118,7 +115,6 @@ def checa_existe_arquivo(arq):
 def df_info_to_json(df: pd.DataFrame, arq_saida: str, dir_saida: str):
 
     """Cria um arquivo json a partir da função pandas df.info()
-
     Args:
         df (pd.DataFrame): O dataframe a ser analisado
         arq_saida (str): o nome do arquivo de saida
@@ -139,10 +135,10 @@ def df_info_to_json(df: pd.DataFrame, arq_saida: str, dir_saida: str):
 
     schema_info = {
         'Int64Index': {},
-        'data_columns': np.nan,
+        'data_columns': None,
         'columns': {},
         'dtypes': {},
-        'memory_usage': np.nan
+        'memory_usage': None
     }
 
     arqopen = open(arqinfo, 'r')

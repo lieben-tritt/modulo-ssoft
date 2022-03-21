@@ -10,11 +10,12 @@
             "arquivo_pqt": {
                 "compressao": "snappy",
                 "prefixo": "df",
-                "timeout_minutes": 60
+                "timeout_minutes": 15
             },
             "ano_letivo_base": "2019"
         },
-        "local_cache": "cache"
+        "local_cache": "cache",
+        "local_cache_ssoft": "cache/ssoft_n3"
     },
     "totvs_hot": {
         "processo": "totvs_hot",
