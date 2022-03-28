@@ -30,7 +30,7 @@ Cria variáveis para uso interno e global:
 ambiente = config['super_ssoft']
 credential = ambiente['gcp']['credential']
 
-ssoft_credential = current_dir + '/' + credential
+ssoft_credential = f'{current_dir}.{credential}')
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ssoft_credential
 
 remote_cache = ambiente['gcp']['cache_bucket']
@@ -72,29 +72,19 @@ if os.path.isdir(local_cache)==False:
 
     cria_dirs(dirs, "")
 
-"""
-Montagem da classe geral "GetTotvs" e das classes específicas das tabelas
-do repositrio CACHE - SSofT
-Para pegar as dados "naturais", quando conveniente ou necessários, recorre-
--se à classe GetTotvs. Normalmente serão usadas as classes individuais
-
-A class individual é necessária para as transoformações, de "de-para" por
-exemplo, que cada tabela por ter.
-"""
-
-"""
-Classe geral para todas as tabelas do repositório. É o estado V1 so SSofT
-Houve uma primeira "interpretação" python a partir da extração do SQL Server
-"""
-
-tabela_atual = ''
 
 class GetTotvs:
-    """
-    Classe base para tabelas TOTVS
+    
+    """ Montagem da classe geral "GetTotvs" e das classes específicas das tabelas
+    do repositrio CACHE - SSofT
+    Para pegar as dados "naturais", quando conveniente ou necessários, recorre-
+    -se à classe GetTotvs. Normalmente serão usadas as classes individuais
 
-    Classe base para tabelas TOTVS com todos os methods comuns
-    Defnição ainda por vir - métodos úteis comuns
+    A class individual é necessária para as transoformações, de "de-para" por
+    exemplo, que cada tabela pode necessitar, como é o caso de `SSTATUS`.
+
+    Classe geral para todas as tabelas do repositório. É o estado V1 so SSofT
+    Houve uma primeira "interpretação" python a partir da extração do SQL Server
     """
 
     def __init__(self, tabela, strict=False, idx=None, proj_id=None, dataset_id=None):
@@ -104,9 +94,7 @@ class GetTotvs:
         self.proj_id = None
         self.dataset_id = None
         self.idx = idx
-        tabela_atual = tabela.capitalize()
 
-    # @newrelic.agent.background_task(name=tabela_atual, group='SuperSSofT')
     def df_base(self, hm=False, columns=None):
         """
         Função principal: montagem do dataframe a partir do arquivo 
@@ -149,7 +137,7 @@ class GetTotvs:
             self.df_original.columns = self.df_original.columns.str.lower()
 
         except Exception as e:
-            print('Erro ao ler parquet')
+            print(f'Erro ao ler o arquivo {nome_arquivo}')
 
         if columns:
             filtro = list(columns.replace(' ', '').split(','))
@@ -173,11 +161,6 @@ class GetTotvs:
             )
 
         return self.df_original.filter(filtro)
-
-
-"""
-Classes específicas de cada tabela do repositórioo CACHE
-"""
 
 
 class PpessoaSt(GetTotvs):
@@ -318,15 +301,15 @@ class Shabilitacaofilial(GetTotvs):
             '-' + _temp.turno_dp.str[0]
         dfb['turno_dp'] = _temp.turno_dp
 
-        filtro = [
+        colunas = [
             'codcoligada', 'codfilial', 'nome_habilitacao', 'codcurso_dp',
-            'codcurso_dp_sub', 'serie_dp', 'codcurso_dp_sub_ord', 'codcurso_dp_nome',
-            'idhabilitacaofilial', 'codturno', 'turno_dp', 'codcurso', 'codtipocurso',
-            'codcurso_sub_turno', 'codhabilitacao', 'codgrade', 'codccusto',
-            'ativo'
+            'codcurso_dp_sub', 'serie_dp', 'codcurso_dp_sub_ord',
+            'codcurso_dp_nome', 'idhabilitacaofilial', 'codturno', 'turno_dp',
+            'codcurso', 'codtipocurso', 'codcurso_sub_turno', 'codhabilitacao',
+            'codgrade', 'codccusto', 'ativo'
         ]
 
-        return dfb[filtro]
+        return dfb[colunas]
 
     def codcurso_sub_turno_df(self):
         """Faz a extração básica de turno para a criação da coluna 
@@ -1602,6 +1585,18 @@ class Sprovas(GetTotvs):
         df = super().df_base(columns)
 
         return df
+
+
+class Sfrequencia(GetTotvs):
+
+    def __init__(self):
+        super().__init__('sfrequencia', True)
+
+    def df(self, columns=None, thdp: bool = False):
+
+        dfb = super().df_base(columns)
+
+        return dfb
 
 
 # *-----------------------------------------------------------------------------
