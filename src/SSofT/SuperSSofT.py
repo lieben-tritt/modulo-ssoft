@@ -10,6 +10,7 @@ from SSofT_functions import (
     get_config,
     checa_existe_arquivo,
     download_blob_simples,
+    get_config_yaml,
     get_heatmap
     )
 
@@ -19,8 +20,8 @@ Carrega o json de configuração do processo
 """
 
 # %%
-config = get_config()
-pqt_version = '_v3_beta'
+config = get_config_yaml()
+pqt_version = f"_{config['super_ssoft']['versao']}"
 
 """
 Cria variáveis para uso interno e global:
@@ -115,22 +116,10 @@ class GetBoaFull(GetSSofT):
         return dfb 
 
 
-class GetBoaAtiva(GetSSofT):
-    
-    def __init__(self):
-        super().__init__('df.BolsaAluno_ativa.snappy')
-
-    def df(self, columns=None):
-
-        dfb = super().df_base()
- 
-        return dfb
-    
-    
 class GetStatus(GetSSofT):
     
     def __init__(self):
-        super().__init__(f'df.StatusStatusMovimento_mpl_last{pqt_version}.snappy')
+        super().__init__(f'df.ee_ssoft_mpl{pqt_version}.snappy')
 
     def df(self, columns=None):
 
@@ -138,11 +127,21 @@ class GetStatus(GetSSofT):
  
         return dfb
 
-
-class GetFluxoRv(GetSSofT):
+class GetStatusFull(GetSSofT):
     
     def __init__(self):
-        super().__init__(f'df.StatusStatusMovimento_fluxo_rv{pqt_version}.snappy')
+        super().__init__(f'df.ee_ssoft_mpl_full{pqt_version}.snappy')
+
+    def df(self, columns=None):
+
+        dfb = super().df_base()
+ 
+        return dfb
+
+class GetFluxoMkt(GetSSofT):
+    
+    def __init__(self):
+        super().__init__(f'df.ee_ssoft_flx_mkt{pqt_version}.snappy')
 
     def df(self, columns=None):
 
@@ -154,7 +153,19 @@ class GetFluxoRv(GetSSofT):
 class GetFluxo(GetSSofT):
     
     def __init__(self):
-        super().__init__(f'df.StatusStatusMovimento_fluxo{pqt_version}.snappy')
+        super().__init__(f'df.ee_ssoft_flx{pqt_version}.snappy')
+
+    def df(self, columns=None):
+
+        dfb = super().df_base()
+ 
+        return dfb
+
+
+class GetFluxoFull(GetSSofT):
+    
+    def __init__(self):
+        super().__init__(f'df.ee_ssoft_flx_full{pqt_version}.snappy')
 
     def df(self, columns=None):
 
@@ -166,7 +177,7 @@ class GetFluxo(GetSSofT):
 class GetLog(GetSSofT):
     
     def __init__(self):
-        super().__init__(f'df.StatusStatusMovimento_lpl_log{pqt_version}.snappy')
+        super().__init__(f'df.ee_ssoft_lpl{pqt_version}.snappy')
 
     def df(self, columns=None):
 
@@ -175,22 +186,10 @@ class GetLog(GetSSofT):
         return dfb
 
 
-class GetFullLog(GetSSofT):
+class GetLogFull(GetSSofT):
     
     def __init__(self):
-        super().__init__(f'df.StatusStatusMovimento_full{pqt_version}.snappy')
-
-    def df(self, columns=None):
-
-        dfb = super().df_base()
- 
-        return dfb
-
-
-class GetParMov(GetSSofT):
-
-    def __init__(self):
-        super().__init__('df.Parcela.snappy')
+        super().__init__(f'df.ee_base_totvs{pqt_version}.snappy')
 
     def df(self, columns=None):
 

@@ -1,14 +1,68 @@
-class Grupo:
+class Coligada:
+    
+    def __init__(self, _df):
+        
+        self.df = _df
+    
+    def get_coligada_by_cod(
+        self, codcoligada, codfilial=None, anoletivo=None, colunas=None
+        ):
+        """Carrega o dataframe da coligada [e filial] especificada
+
+        Args:
+            codcoligada (int ou list): codigo do(s) grupos(s)
+            codfilial (int ou list): codigo da filial da coligada
+            anoletivo (opcional): [list de anos letivos] ou anoletivo int.
+            colunas (opcional): define quais as colunas serã expostas
+
+        Returns:
+            dataframe: retorna o dataframe do código da coligada especificada
+        """
+        _df = self.df
+
+        if isinstance(codcoligada, list):
+            _df = _df[_df.codcoligada.isin(codcoligada)]        
+        elif isinstance(codcoligada, tuple):
+            _df = _df[_df.codcoligada.isin(list(codcoligada))]
+        else:
+            _df = _df[_df.codcoligada==codcoligada]
+
+        if isinstance(codfilial, list):
+            _df = _df[_df.codcoligada.isin(codfilial)]        
+        elif isinstance(codfilial, tuple):
+            _df = _df[_df.codcoligada.isin(list(codfilial))]
+        else:
+            _df = _df[_df.codcoligada==codfilial]
+
+        if anoletivo:
+            if isinstance(anoletivo, list):
+                _df = _df[_df.anoletivo.isin(anoletivo)]
+            else:
+                _df = _df[_df.anoletivo==anoletivo]
+        
+        _filtro_cols = _df.columns.to_list() 
+
+        if colunas:
+            if isinstance(colunas, list):
+                _filtro_cols = colunas
+            elif isinstance(colunas, tuple):
+                _filtro_cols = list(colunas)
+            else:
+                pass
+
+        return _df.filter(_filtro_cols)
+
+class Escola:
 
     def __init__(self, _df):
         
         self.df = _df
     
-    def get_grupo_by_cod(self, codgrupo, anoletivo=None, colunas=None):
+    def get_escola_by_cod(self, codescola, anoletivo=None, colunas=None):
         """Carrega o dataframe da escola especificada
 
         Args:
-            codgrupo (int ou list): codigo do(s) grupos(s)
+            codescola (int ou list): codigo do(s) grupos(s)
             anoletivo (opcional): [list de anos letivos] ou anoletivo int.
 
         Returns:
@@ -16,12 +70,12 @@ class Grupo:
         """
         _df = self.df
 
-        if isinstance(codgrupo, list):
-            _df = _df[_df.codgrupo.isin(codgrupo)]        
-        elif isinstance(codgrupo, tuple):
-            _df = _df[_df.codgrupo.isin(list(codgrupo))]
+        if isinstance(codescola, list):
+            _df = _df[_df.codescola.isin(codescola)]        
+        elif isinstance(codescola, tuple):
+            _df = _df[_df.codescola.isin(list(codescola))]
         else:
-            _df = _df[_df.codgrupo==codgrupo]
+            _df = _df[_df.codescola==codescola]
 
         if anoletivo:
             if isinstance(anoletivo, list):
@@ -127,8 +181,8 @@ class Grupo:
 
         if grouped:
             _df_md = _df_md.groupby([
-                'codgrupo', 'nomegrupo'],
+                'codescola', 'escola'],
                 as_index=False
                 ).agg(ra_log=('ra','nunique'))
 
-        return _df_md.sort_values('nomegrupo')        
+        return _df_md.sort_values('escola')        

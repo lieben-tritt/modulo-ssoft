@@ -1,9 +1,10 @@
 import io
 import json
+import yaml
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -23,29 +24,98 @@ def get_config(json_file=None, abspath=True, relpath=None):
 
     return config
 
+
+def get_credential(credential):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credential
+
+def do_data_ssoft(df):
+    """ Insere um campo no dataframe com a data agora
+    """        
+    df['data_ssoft'] = datetime.now()
+
+def dir_base():
+    return parent_parent +'/'
+
+def get_config_yaml(_file=None, abspath=True, relpath=None):
+    
+    
+    if _file:
+        if abspath is True:
+            cnf = os.path.abspath(_file)
+        else:
+            cnf = _file
+    else:
+        cnf = current_dir + '/SSofT_config.yaml'
+        #cnf = Path('config/config.json')
+
+    with open(cnf, encoding='utf-8') as conf:
+        config = yaml.safe_load(conf)
+
+    return config
+
 #!=============================================================================
-config = get_config()
+#config = get_config()
+config = get_config_yaml()
 #!=============================================================================
+
+def get_str_agora(data=False):
+    
+    if data is True:
+        ret = datetime.now()
+    else:
+        ret = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    return ret
+
+def do_log(txt, dtini=None, dtfim=None):
+
+    concat = f'{get_str_agora()} | --> {txt}'
+
+    if (dtini and dtfim):
+
+        diff_seconds = round((dtfim-dtini).total_seconds(),2)
+        diff_fmt = str(timedelta(seconds=diff_seconds))
+
+        concat = f'{concat} - duração: {diff_fmt}'
+
+    return (
+        logging.info(concat),
+        print(concat)
+    )
+
+def diff_datas(dtfim, dtini):
+
+    diff_seconds = round((dtfim-dtini).total_seconds(),0)
+    diff_fmt = str(timedelta(seconds=diff_seconds))
+    
+    return diff_fmt
+
+def insere_coluna(df, col_name: str, after: bool=True):
+    """ Função para inserção de uma coluna pos ou antes de outra coluna"""
+
+    plus_minus = 1
+    if after == False:
+        plus_minus = -1
+
+    index_col = df.columns.get_loc(col_name) + plus_minus
+    return index_col
 
 def download_blob(nome, bucket, prefix_snappy='df', compressao='snappy'):
     """Download um blob de um bucket."""
-    
-    #print(nome, ' - ', bucket, ' - ', prefix_snappy, ' - ', compressao)
-    
+
     #config = get_config()
 
     """ Aponta para o cache SuperSSofT - depois tem que ver se faz-se uma
         mais generica
     """
     local_cache = config['super_ssoft']['local_cache']
-    
+
     storage_client = storage.Client()
     source_blob_name = '.'.join([prefix_snappy, nome.upper(), compressao])
     destination_file_name = local_cache + '/' + source_blob_name
     bucket_client = storage_client.bucket(bucket)
 
-    print('Carregando ' + source_blob_name + '...')
-    print('Enviando para: ' + destination_file_name + '...')
+    do_log(f'Carregando {source_blob_name} e enviando para: {destination_file_name}...')
 
     getblob = bucket_client.get_blob(source_blob_name)
     getblob.download_to_filename(destination_file_name)
@@ -55,14 +125,13 @@ def download_blob(nome, bucket, prefix_snappy='df', compressao='snappy'):
 def download_blob_simples(nome, bucket, local_cache):
     """Download um blob de um bucket."""
     
-    print('Download: ', nome, ' -> Bucket: ', bucket)
+    do_log(f'Download {nome} - bucket: {bucket}')
         
     storage_client = storage.Client()
     destination_file_name = local_cache + '/' + nome
     bucket_client = storage_client.bucket(bucket)
 
-    print('Carregando ' + nome + '... ', 'Enviando para: ' + \
-        destination_file_name + '...')
+    do_log(f'Carregando {nome}... Enviando para: {destination_file_name}...')
 
     getblob = bucket_client.get_blob(nome)
     getblob.download_to_filename(destination_file_name)
@@ -73,12 +142,14 @@ def checa_existe_arquivo(arq):
 
     """Esta função checa se o arquivo da tabela em questão existe e se está
     válido dentro do tempo definido na config
+
     Caso esteja válido, usa o arquivo. Caso não esteja válido ou não exista, 
     faz o download do repositório de cache atualizado pela importação do
     totvs_hot
     """
     #config = get_config()
     arqcache = os.path.exists(arq)
+    txt_arqcache = arq.split('.')[1]
 
     if arqcache is True:
 
@@ -86,13 +157,10 @@ def checa_existe_arquivo(arq):
         file_mod_time = datetime.fromtimestamp(os.stat(arq).st_ctime)
         agora = datetime.today()
         max_delay = timedelta(minutes=timeout)
-
+        
         if agora - file_mod_time > max_delay:
-
-            print(
-                '{} - EXISTE - mas não é válido Política de cache ativada'.format(arq)
-                )
-
+         
+            do_log(f'{txt_arqcache} - existe mas invalidado pelo timeout')
             """
             Apaga o arquivo para garantir o "frescor dos daados" :-)
             """
@@ -100,17 +168,25 @@ def checa_existe_arquivo(arq):
             return False
 
         else:
-
-            print('{} - Arquivo de cache válido'.format(arq))
+         
+            do_log(f'{txt_arqcache} - Arquivo de cache válido')
             arqcache = None
             return True
-
     else:
 
-        print('{} - Arquivo de cache não existe. Download '.format(arq))
-
+        do_log(f'{txt_arqcache} - Não existe o arquivo no cache. Carregando...')
         arqcache = None
         return False
+
+def get_sql(Filesql: str, Index: int):
+    """ Acessa o arquivo contendo scripts SQL e seleciona pelo índice criado a
+    partir da separação de scripts com `;`  """
+
+    fsql = open(Filesql, 'r', encoding="utf8")
+    fsql = fsql.read().split(';')
+    sql_script = fsql[Index]
+
+    return sql_script
 
 def df_info_to_json(df: pd.DataFrame, arq_saida: str, dir_saida: str):
 

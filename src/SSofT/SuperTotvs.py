@@ -15,14 +15,15 @@ from SSofT_functions import (
     get_config, 
     checa_existe_arquivo, 
     df_info_to_json,
-    download_blob, 
+    download_blob,
+    get_config_yaml, 
     get_heatmap
     )
 
 """
 Carrega o json de configuração do processo
 """
-config = get_config()
+config = get_config_yaml()
 ano_letivo_base_corte_global = config['super_ssoft']['gcp']['ano_letivo_base']
 """
 Cria variáveis para uso interno e global:
@@ -30,7 +31,7 @@ Cria variáveis para uso interno e global:
 ambiente = config['super_ssoft']
 credential = ambiente['gcp']['credential']
 
-ssoft_credential = f'{current_dir}.{credential}')
+ssoft_credential = f'{current_dir}.{credential}'
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ssoft_credential
 
 remote_cache = ambiente['gcp']['cache_bucket']
@@ -56,12 +57,14 @@ if os.path.isdir(local_cache)==False:
     print('Criando a estrutura inicial de diretorios...')
     dirs[local_cache]["heatmap"]
     dirs[local_cache]["metadados"]
-    dirs[local_cache]["ssoft_n1"]["metadados"]
-    dirs[local_cache]["ssoft_n1"]["heatmap"]
-    dirs[local_cache]["ssoft_n2"]["metadados"]
-    dirs[local_cache]["ssoft_n2"]["heatmap"]
-    dirs[local_cache]["ssoft_n3"]["metadados"]
-    dirs[local_cache]["ssoft_n3"]["heatmap"]
+    dirs[local_cache]["ssoft"]["metadados"]
+    dirs[local_cache]["ssoft"]["heatmap"]
+    #dirs[local_cache]["ssoft_n1"]["metadados"]
+    #dirs[local_cache]["ssoft_n1"]["heatmap"]
+    #dirs[local_cache]["ssoft_n2"]["metadados"]
+    #dirs[local_cache]["ssoft_n2"]["heatmap"]
+    #dirs[local_cache]["ssoft_n3"]["metadados"]
+    #dirs[local_cache]["ssoft_n3"]["heatmap"]
 
     def cria_dirs(directory, current_path):
         if len(directory):
